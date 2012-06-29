@@ -1,0 +1,48 @@
+.app {
+    margin:5px;
+}
+.pass-legend {
+    background: #B2E3B6 none repeat scroll 0%; /* std Rally muted green */
+    border: 1px solid #DDDDDD;
+    color: black;
+    cursor: default;
+    text-align: center;
+}
+
+.pass-legend-other {
+    background: #fbde98; /* std Rally muted yellow/tan */
+    border: 1px solid #DDDDDD;
+    color: black;
+    cursor: default;
+    text-align: center;
+}
+
+.pass-legend-fail {
+    background: #fCB5B1 none repeat scroll 0%; /* std Rally muted red */
+    border: 1px solid #DDDDDD;
+    color: black;
+    cursor: default;
+    text-align: center;
+}
+
+.columnHeader {
+    font-weight: bold;
+}
+.error404 {
+    margin: 5px;
+    text-align: center;
+}
+.gridTitle {
+    margin: 20px 5px 5px;
+    font-weight: bold;
+}
+.gridContainer {
+    padding: 5px;
+    margin-left: 20px;
+    padding-left: 10px;
+    border-left: 3px solid #DDDDDD;
+}
+.testCaseGrid {
+    border-left: 1px solid #C5C5C5;
+}     
+     
