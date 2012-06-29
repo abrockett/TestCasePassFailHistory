@@ -17,8 +17,6 @@ Ext.define('CustomApp', {
 
         Ext.create('Rally.data.WsapiDataStore', {    
             model: 'TestCaseResult',
-            key   : "testcaseresults",
-            type  : "testcaseresults",
             autoLoad: true,
             fetch: ['ObjectID', 'Build', 'Date', 'Verdict', 'Duration', 'Tester', 'UserName', 'DisplayName', 'TestCase', 'FormattedID', 'Name', 'WorkProduct'],
             filters: [{
