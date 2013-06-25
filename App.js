@@ -1,17 +1,19 @@
 Ext.define('CustomApp', {
     extend: 'Rally.app.App',
+    requires: ['HeaderRow', 'DataRow'],
     componentCls: 'app',
 
-    items: [{
-        xtype: 'container',
-        itemId: 'mainHeader'
-    }, {
+    items: [//{
+        //xtype: 'container',
+        //itemId: 'mainHeader'
+    //}, 
+    {
         xtype: 'container',
         itemId: 'testCaseGrids'
     }],
     
     launch: function () {
-        var prevDate30 = Rally.util.DateTime.add(new Date(), 'day', -30);
+        var prevDate30 = Rally.util.DateTime.add(new Date(), 'day', -180);
         var isoPrevDate30 = Rally.util.DateTime.toIsoString(prevDate30, false);
 
         Ext.create('Rally.data.WsapiDataStore', {    
@@ -54,6 +56,7 @@ Ext.define('CustomApp', {
     },
     
     _organizeResultsByTestCase: function (testCaseResults) {
+        //debugger;
         var testCaseHolder = {};  // will be keyed by TestCase FormattedID with a value of
         // {'TestCase': tc, 'results': [tcr, tcr, tcr, tcr, ...]}
         var tcr, tc;
@@ -85,6 +88,7 @@ Ext.define('CustomApp', {
     },
 
     _onTestCasesDataLoaded: function (store, data) {
+        //debugger;
         //TO DO: update to use store and data instead of queryResults
         if (data.length < 1) {
             this.down('#testCaseGrids').add(
@@ -110,11 +114,11 @@ Ext.define('CustomApp', {
             tcTitle = wpLink = '';
             tcFormattedID = testCases[i];
             testCase = testCaseHolder[tcFormattedID].TestCase;
-            tcTitle = TC_LINK.replace('_TARGET_URL_', Rally.util.Navigation.createRallyDetailUrl(testCase));
+            tcTitle = TC_LINK.replace('_TARGET_URL_', Rally.nav.Manager.getDetailUrl(testCase));
             tcTitle = tcTitle.replace('_ID_', tcFormattedID).replace('_NAME_', testCase.Name);
             if (testCase.WorkProduct !== null) {
                 wpInfo = testCase.WorkProduct.FormattedID + ': ' + testCase.WorkProduct.Name;
-                wpLink = WP_LINK.replace("_WP_TARGET_", Rally.util.Navigation.createRallyDetailUrl(testCase.WorkProduct));
+                wpLink = WP_LINK.replace("_WP_TARGET_", Rally.nav.Manager.getDetailUrl(testCase.WorkProduct));
                 wpLink = wpLink.replace("_WP_TEXT_", wpInfo);
             }
             tcTitle = tcTitle.replace('_WP_LINK_', wpLink);
@@ -128,7 +132,7 @@ Ext.define('CustomApp', {
             tcrs = testCaseHolder[tcFormattedID].results;
             for (j = 0; j < tcrs.length; j++) {
                 records.push({
-                    ID: '<a href="' + Rally.util.Navigation.createRallyDetailUrl(that._conditionalGet(tcrs[j], '_ref')) + '" target="_top">' + that._conditionalGet(tcrs[j], 'ObjectID') + '</a>',
+                    ID: '<a href="' + Rally.nav.Manager.getDetailUrl(that._conditionalGet(tcrs[j], '_ref')) + '" target="_top">' + that._conditionalGet(tcrs[j], 'ObjectID') + '</a>',
                     Build: tcrs[j].get('Build'),
                     DateandTime: tcrs[j].get('Date'),
                     Verdict: that._drawBox(tcrs[j].get('Verdict')),
