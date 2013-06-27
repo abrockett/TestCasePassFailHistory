@@ -14,7 +14,7 @@ Ext.define('CustomApp', {
     }],
     
     launch: function () {
-        var prevDate30 = Rally.util.DateTime.add(new Date(), 'day', -30);
+        var prevDate30 = Rally.util.DateTime.add(new Date(), 'day', -180);
         var isoPrevDate30 = Rally.util.DateTime.toIsoString(prevDate30, false);
 
         this.down('#mainHeader').update('Test case history for last 30 days:');
