@@ -5,7 +5,7 @@
     "sdk": "x",
     "javascript": [
         "HeaderRow.js",
-        "DataRow.js",
+        "TestCaseTable.js",
         "App.js"
     ],
     "css": [
