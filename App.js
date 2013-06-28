@@ -14,7 +14,7 @@ Ext.define('CustomApp', {
     }],
     
     launch: function () {
-        var prevDate30 = Rally.util.DateTime.add(new Date(), 'day', -180);
+        var prevDate30 = Rally.util.DateTime.add(new Date(), 'day', -30);
         var isoPrevDate30 = Rally.util.DateTime.toIsoString(prevDate30, false);
 
         this.down('#mainHeader').update('Test case history for last 30 days:');
@@ -70,15 +70,13 @@ Ext.define('CustomApp', {
     
     _organizeResultsByTestCase: function (testCaseResults) {
         //debugger;
-        var testCaseHolder = {};  // will be keyed by TestCase FormattedID with a value of
-        // {'TestCase': tc, 'results': [tcr, tcr, tcr, tcr, ...]}
+        var testCaseHolder = {};
         var tcResult, testCase;
         for (var i = 0; i < testCaseResults.length; i++) {
             tcResult = testCaseResults[i];
             testCase = tcResult.get('TestCase');
-            //debugger;
             if (testCase !== undefined) {
-                if (!testCaseHolder.hasOwnProperty(testCase.FormattedID))  // no existing entry for tc.FormattedID ?
+                if (!testCaseHolder.hasOwnProperty(testCase.FormattedID))
                 {
                     testCaseHolder[testCase.FormattedID] = {'TestCase': testCase, 'results': []};
                 }
@@ -102,8 +100,6 @@ Ext.define('CustomApp', {
     },
 
     _onTestCasesDataLoaded: function (store, data) {
-        //debugger;
-        //TO DO: update to use store and data instead of queryResults
         if (data.length < 1) {
             this.down('#mainHeader').update('');
             this.down('#testCaseGrids').add(
@@ -158,46 +154,50 @@ Ext.define('CustomApp', {
                     pageSize: records.length
                 });
 
-                this.down('#testCaseGrids').add(
-                    Ext.create('Ext.container.Container', {
-                        layout: 'fit',
-                        cls: 'gridContainer',
-                        items: {
-                            xtype: 'rallygrid',
-                            store: customStore,
-                            cls: 'testCaseGrid',
-                            showPagingToolbar: false,
-                            columnCfgs: [{
-                                text: 'ID',
-                                dataIndex: 'ID',
-                                cls: 'columnHeader',
-                                flex: 2
-                            }, {
-                                text: 'Verdict',
-                                dataIndex: 'Verdict',
-                                cls: 'columnHeader',
-                                width: 100
-                            }, {
-                                text: 'Build',
-                                dataIndex: 'Build',
-                                cls: 'columnHeader',
-                                flex: 2
-                            }, {
-                                text: 'Date and Time',
-                                dataIndex: 'DateandTime',
-                                cls: 'columnHeader',
-                                flex: 3
-                            }, {
-                                text: 'Tester',
-                                dataIndex: 'Tester',
-                                cls: 'columnHeader',
-                                flex: 2
-                            }]
-                        }
-                    })
-                );
+                this._buildGrid(customStore);
             }
         }
+    },
+
+    _buildGrid: function(store) {
+        this.down('#testCaseGrids').add(
+            Ext.create('Ext.container.Container', {
+                layout: 'fit',
+                cls: 'gridContainer',
+                items: {
+                    xtype: 'rallygrid',
+                    store: store,
+                    cls: 'testCaseGrid',
+                    showPagingToolbar: false,
+                    columnCfgs: [{
+                        text: 'ID',
+                        dataIndex: 'ID',
+                        cls: 'columnHeader',
+                        flex: 2
+                    }, {
+                        text: 'Verdict',
+                        dataIndex: 'Verdict',
+                        cls: 'columnHeader',
+                        width: 100
+                    }, {
+                        text: 'Build',
+                        dataIndex: 'Build',
+                        cls: 'columnHeader',
+                        flex: 2
+                    }, {
+                        text: 'Date and Time',
+                        dataIndex: 'DateandTime',
+                        cls: 'columnHeader',
+                        flex: 3
+                    }, {
+                        text: 'Tester',
+                        dataIndex: 'Tester',
+                        cls: 'columnHeader',
+                        flex: 2
+                    }]
+                }
+            })
+        );
     },
 
     getOptions: function() {
