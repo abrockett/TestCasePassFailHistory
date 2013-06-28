@@ -4,7 +4,6 @@
     "server": "https://test1cluster.rallydev.com",
     "sdk": "x",
     "javascript": [
-        "HeaderRow.js",
         "TestCaseTable.js",
         "App.js"
     ],
