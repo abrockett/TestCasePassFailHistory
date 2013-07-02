@@ -1,6 +1,5 @@
 Ext.define('CustomApp', {
     extend: 'Rally.app.App',
-    requires: ['HeaderRow', 'TestCaseTable'],
     componentCls: 'app',
 
     items: [{
@@ -14,7 +13,7 @@ Ext.define('CustomApp', {
     }],
     
     launch: function () {
-        var prevDate30 = Rally.util.DateTime.add(new Date(), 'day', -30);
+        var prevDate30 = Rally.util.DateTime.add(new Date(), 'day', -180);
         var isoPrevDate30 = Rally.util.DateTime.toIsoString(prevDate30, false);
 
         this.down('#mainHeader').update('Test case history for last 30 days:');
@@ -22,7 +21,8 @@ Ext.define('CustomApp', {
         Ext.create('Rally.data.WsapiDataStore', {    
             model: 'TestCaseResult',
             autoLoad: true,
-            fetch: ['ObjectID', 'Build', 'Date', 'Verdict', 'Duration', 'Tester', 'UserName', 'DisplayName', 'TestCase', 'FormattedID', 'Name', 'WorkProduct'],
+            fetch: ['ObjectID', 'Build', 'Date', 'Verdict', 'Duration', 'Tester', 'UserName',
+                'DisplayName', 'TestCase', 'FormattedID', 'Name', 'WorkProduct'],
             filters: [{
                 property: 'Date',
                 operator: '>=',
@@ -58,29 +58,39 @@ Ext.define('CustomApp', {
     },
     
     _drawBox: function (verdict) {
+        var boxTemplate = new Ext.Template('<div class="{verdictClass}"><div style="margin:2px;">{verdict}</div></div>');
+
         var verdictClass = 'pass-legend-other';
         if (verdict === 'Pass') {
             verdictClass = 'pass-legend';
-        }
-        if (verdict === 'Fail') {
+        } else if (verdict === 'Fail') {
             verdictClass = 'pass-legend-fail';
         }
-        return '<div class="' + verdictClass + '"><div style="margin:2px;">' + verdict + '</div></div>';
+        return boxTemplate.apply({verdictClass: verdictClass, verdict: verdict});
     },
     
     _organizeResultsByTestCase: function (testCaseResults) {
-        //debugger;
         var testCaseHolder = {};
-        var tcResult, testCase;
+        var tcResult, testCase, id;
         for (var i = 0; i < testCaseResults.length; i++) {
             tcResult = testCaseResults[i];
             testCase = tcResult.get('TestCase');
             if (testCase !== undefined) {
-                if (!testCaseHolder.hasOwnProperty(testCase.FormattedID))
-                {
-                    testCaseHolder[testCase.FormattedID] = {'TestCase': testCase, 'results': []};
+                //debugger;
+                //if (!testCaseHolder.hasOwnProperty(testCase.FormattedID))
+                //{
+                //    testCaseHolder[testCase.FormattedID] = {'TestCase': testCase, 'results': []};
+                //}
+                //testCaseHolder[testCase.FormattedID].results.push(tcResult);
+                id = testCase.FormattedID;
+                if (id === undefined) {
+                    id = 'No Test Case';
                 }
-                testCaseHolder[testCase.FormattedID].results.push(tcResult);
+                if (!testCaseHolder.hasOwnProperty(id))
+                {
+                    testCaseHolder[id] = {'TestCase': testCase, 'results': []};
+                }
+                testCaseHolder[id].results.push(tcResult);
             }
             
         }
@@ -112,40 +122,48 @@ Ext.define('CustomApp', {
             var testCaseHolder = this._organizeResultsByTestCase(data);
             var testCases = this._ascendingOrderedTestCases(testCaseHolder);
             
-            var records, customStore;
-            var tcFormattedID, testCase, tcTitle, tcrs;
-            var wpInfo, wpLink;
-            var TC_LINK = '<a href="_TARGET_URL_" target="_top">_ID_: _NAME_</a> _WP_LINK_';
-            var WP_LINK = '(<a href="_WP_TARGET_" target="_top">_WP_TEXT_</a>)'; 
-            var i, j, that = this;
-            for (i = 0; i < testCases.length; i++) {
+            var records, customStore,
+                tcFormattedID, testCase, testCaseResults;
+
+
+            var tcLinkTemplate = new Ext.Template('<a href="{targeturl}" target="_top">{id}: {name}</a> {wplink}');
+            var wpLinkTemplate = new Ext.Template(' (<a href="{wptarget}" target="_top">{wptext}</a>)');
+
+            for (var i = 0; i < testCases.length; i++) {
                 records = [];
-                tcTitle = wpLink = '';
+                var wpLink = ''; 
+                var tcTitle = '';
                 tcFormattedID = testCases[i];
                 testCase = testCaseHolder[tcFormattedID].TestCase;
-                tcTitle = TC_LINK.replace('_TARGET_URL_', Rally.nav.Manager.getDetailUrl(testCase));
-                tcTitle = tcTitle.replace('_ID_', tcFormattedID).replace('_NAME_', testCase.Name);
-                if (testCase.WorkProduct !== null) {
-                    wpInfo = testCase.WorkProduct.FormattedID + ': ' + testCase.WorkProduct.Name;
-                    wpLink = WP_LINK.replace("_WP_TARGET_", Rally.nav.Manager.getDetailUrl(testCase.WorkProduct));
-                    wpLink = wpLink.replace("_WP_TEXT_", wpInfo);
+                var targetUrl = Rally.nav.Manager.getDetailUrl(testCase);
+                var ID = testCases[i];
+                var name = testCase.Name;
+
+                if (testCase.WorkProduct !== undefined && testCase.WorkProduct !== null) {
+                    var wpTarget = Rally.nav.Manager.getDetailUrl(testCase.WorkProduct);
+                    var wpText = testCase.WorkProduct.FormattedID + ': ' + testCase.WorkProduct.Name;
+                    wpLink = wpLinkTemplate.apply({wptarget: wpTarget, wptext: wpText});
                 }
-                tcTitle = tcTitle.replace('_WP_LINK_', wpLink);
+
+                var testCaseTitle = tcLinkTemplate.apply({targeturl: targetUrl, id: ID, name: name, wplink: wpLink});
                 this.down('#testCaseGrids').add(
                     Ext.create('Ext.container.Container', {
-                        html: tcTitle,
+                        html: testCaseTitle,
                         cls: 'gridTitle'
                     })
                 );
                 
-                tcrs = testCaseHolder[tcFormattedID].results;
-                for (j = 0; j < tcrs.length; j++) {
+                testCaseResults = testCaseHolder[tcFormattedID].results;
+
+                var that = this;
+                for (var j = 0; j < testCaseResults.length; j++) {
                     records.push({
-                        ID: '<a href="' + Rally.nav.Manager.getDetailUrl(that._conditionalGet(tcrs[j], '_ref')) + '" target="_top">' + that._conditionalGet(tcrs[j], 'ObjectID') + '</a>',
-                        Build: tcrs[j].get('Build'),
-                        DateandTime: tcrs[j].get('Date'),
-                        Verdict: that._drawBox(tcrs[j].get('Verdict')),
-                        Tester: that._testerIfKnown(tcrs[j].get('Tester'))
+                        ID: '<a href="' + Rally.nav.Manager.getDetailUrl(that._conditionalGet(testCaseResults[j], '_ref')) +
+                            '" target="_top">' + that._conditionalGet(testCaseResults[j], 'ObjectID') + '</a>',
+                        Build: testCaseResults[j].get('Build'),
+                        DateandTime: testCaseResults[j].get('Date'),
+                        Verdict: that._drawBox(testCaseResults[j].get('Verdict')),
+                        Tester: that._testerIfKnown(testCaseResults[j].get('Tester'))
                     });
                 }
 
@@ -264,7 +282,6 @@ Ext.define('CustomApp', {
     },
 
     _injectCSS: function(printWindow){
-        //find all the stylesheets on the current page and inject them into the new page
         Ext.each(Ext.query('link'), function(stylesheet){
                 this._injectContent('', 'link', {
                 rel: 'stylesheet',

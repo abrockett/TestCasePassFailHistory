@@ -1,10 +1,9 @@
 {
     "name": "TestCasePassFailHistory",
     "className": "CustomApp",
-    "server": "https://test1cluster.rallydev.com",
+    "server": "https://test7cluster.rallydev.com",
     "sdk": "x",
     "javascript": [
-        "TestCaseTable.js",
         "App.js"
     ],
     "css": [
