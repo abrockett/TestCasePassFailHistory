@@ -1,7 +1,7 @@
 {
     "name": "TestCasePassFailHistory",
     "className": "CustomApp",
-    "server": "https://test7cluster.rallydev.com",
+    "server": "https://test15cluster.rallydev.com",
     "sdk": "x",
     "javascript": [
         "App.js"

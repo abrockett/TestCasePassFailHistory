@@ -13,7 +13,7 @@ Ext.define('CustomApp', {
     }],
     
     launch: function () {
-        var prevDate30 = Rally.util.DateTime.add(new Date(), 'day', -180);
+        var prevDate30 = Rally.util.DateTime.add(new Date(), 'day', -30);
         var isoPrevDate30 = Rally.util.DateTime.toIsoString(prevDate30, false);
 
         this.down('#mainHeader').update('Test case history for last 30 days:');
@@ -76,12 +76,6 @@ Ext.define('CustomApp', {
             tcResult = testCaseResults[i];
             testCase = tcResult.get('TestCase');
             if (testCase !== undefined) {
-                //debugger;
-                //if (!testCaseHolder.hasOwnProperty(testCase.FormattedID))
-                //{
-                //    testCaseHolder[testCase.FormattedID] = {'TestCase': testCase, 'results': []};
-                //}
-                //testCaseHolder[testCase.FormattedID].results.push(tcResult);
                 id = testCase.FormattedID;
                 if (id === undefined) {
                     id = 'No Test Case';
@@ -122,9 +116,7 @@ Ext.define('CustomApp', {
             var testCaseHolder = this._organizeResultsByTestCase(data);
             var testCases = this._ascendingOrderedTestCases(testCaseHolder);
             
-            var records, customStore,
-                tcFormattedID, testCase, testCaseResults;
-
+            var records, customStore, tcFormattedID, testCase, testCaseResults;
 
             var tcLinkTemplate = new Ext.Template('<a href="{targeturl}" target="_top">{id}: {name}</a> {wplink}');
             var wpLinkTemplate = new Ext.Template(' (<a href="{wptarget}" target="_top">{wptext}</a>)');
@@ -220,11 +212,11 @@ Ext.define('CustomApp', {
 
     getOptions: function() {
         return [
-        {
-            text: 'Print',
-            handler: this._onButtonPressed,
-            scope: this
-        }
+            {
+                text: 'Print',
+                handler: this._onButtonPressed,
+                scope: this
+            }
         ];
     },
 
@@ -237,7 +229,13 @@ Ext.define('CustomApp', {
 
         
         options = "toolbar=1,menubar=1,scrollbars=yes,scrolling=yes,resizable=yes,width=1000,height=500";
-        var printWindow = window.open('', '', options);
+
+        var printWindow;
+        if (Ext.isIE) {
+            printWindow = window.open();
+        } else {
+            printWindow = window.open('', '', options);
+        }
 
         var doc = printWindow.document;
 
