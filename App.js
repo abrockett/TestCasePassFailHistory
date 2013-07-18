@@ -263,7 +263,7 @@ Ext.define('CustomApp', {
 
 
         doc.write('</head><body class="landscape">');
-        doc.write(header.getEl().dom.innerHTML);
+        doc.write('<p style ="font-family:Arial,Helvetica,sans-serif">' + header.getEl().dom.innerHTML + '</p>');
         doc.write(grids.getEl().dom.innerHTML);
         doc.write('</body></html>');
         doc.close();
