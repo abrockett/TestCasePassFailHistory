@@ -2,6 +2,12 @@ Ext.define('CustomApp', {
     extend: 'Rally.app.App',
     componentCls: 'app',
 
+    config: {
+        defaultSettings: {
+            dateSetting: 30
+        }
+    },
+
     items: [{
         xtype: 'container',
         itemId: 'mainHeader',
@@ -13,20 +19,19 @@ Ext.define('CustomApp', {
     }],
     
     launch: function () {
-        var prevDate30 = Rally.util.DateTime.add(new Date(), 'day', -30);
-        var isoPrevDate30 = Rally.util.DateTime.toIsoString(prevDate30, false);
-
-        this.down('#mainHeader').update('Test case history for last 30 days:');
+        console.log(this.getSettings().dateSetting);
+        this.daysToRecord = this.getSettings().dateSetting;
+        this.down('#mainHeader').update('Test case history for last ' + this.daysToRecord + ' days:');
 
         Ext.create('Rally.data.WsapiDataStore', {    
             model: 'TestCaseResult',
             autoLoad: true,
-            fetch: ['ObjectID', 'Build', 'Date', 'Verdict', 'Duration', 'Tester', 'UserName',
-                'DisplayName', 'TestCase', 'FormattedID', 'Name', 'WorkProduct'],
+            fetch: ['ObjectID', 'Build', 'Date', 'Verdict', 'Duration', 'TestCase', 'FormattedID', 
+                'Name', 'WorkProduct', 'Tester', 'UserName', 'DisplayName'],
             filters: [{
                 property: 'Date',
                 operator: '>=',
-                value: isoPrevDate30
+                value: Rally.util.DateTime.toIsoString(Rally.util.DateTime.add(new Date(), 'day', -this.daysToRecord), false)
             }],
             sorters: [{
                 property: 'Date',
@@ -38,20 +43,121 @@ Ext.define('CustomApp', {
             }
         });
     },
-    
-    _conditionalGet: function (obj, str) {
-        if (obj.get(str) === undefined) {
-            return '';
+
+    _onTestCasesDataLoaded: function (store, data) {
+        debugger;
+        if (data.length < 1) {
+            this._displayEmptyDataText();
         } else {
-            return obj.get(str);
+            var testCaseHolder = this._organizeResultsByTestCase(data);
+            var testCases = this._ascendingOrderedTestCases(testCaseHolder);
+
+            this._formatAndDisplayData(testCases, testCaseHolder);
         }
     },
 
-    _testerIfKnown: function (testerObj) {
-        if (typeof testerObj === 'object' && testerObj.DisplayName !== undefined) {
-            return testerObj.DisplayName;
-        } else if (typeof testerObj === 'object' && testerObj.UserName !== undefined) {
-            return testerObj.UserName;
+    _formatAndDisplayData: function(testCases, testCaseHolder) {
+        Ext.Array.each(testCases, function(testCaseFormattedID) {
+            var testCase = testCaseHolder[testCaseFormattedID].TestCase;
+            var testCaseResults = testCaseHolder[testCaseFormattedID].results;
+            var records = this._makeRecords(testCaseResults);
+            
+            /*
+             *Creates titles to each test case result.
+             */
+            this._buildTestCaseResultTitle(testCaseFormattedID, testCase);
+
+            /*
+             *Creates grids of test cases under each result title
+             */
+            this._buildGrid(records);
+        }, this);
+    },
+
+    _buildTestCaseResultTitle: function(FormattedID, testCase){
+        var tcLinkTemplate = new Ext.Template('<a href="{targeturl}" target="_top">{id}: {name}</a> {wplink}');
+        var wpLinkTemplate = new Ext.Template(' (<a href="{wptarget}" target="_top">{wpid}: {wpname}</a>)');
+        var wpLink = '';
+
+        if (testCase.WorkProduct && testCase.WorkProduct !== null) {
+            wpLink = wpLinkTemplate.apply({wptarget: Rally.nav.Manager.getDetailUrl(testCase.WorkProduct), 
+                wpid: testCase.WorkProduct.FormattedID, wpname: testCase.WorkProduct.Name});
+        }
+
+        var testCaseTitle = tcLinkTemplate.apply({targeturl: Rally.nav.Manager.getDetailUrl(testCase), 
+            id: FormattedID, name: testCase.Name, wplink: wpLink});
+
+        this.down('#testCaseGrids').add(
+            Ext.create('Ext.container.Container', {
+                html: testCaseTitle,
+                componentCls: 'gridTitle'
+            })
+        );
+    },
+
+    _makeRecords: function(testCaseResults) {
+        var records = Ext.Array.map(testCaseResults, function(testCaseResult) {
+            return {
+                ID: '<a href="' + Rally.nav.Manager.getDetailUrl(this._conditionalGet(testCaseResult, '_ref')) +
+                    '" target="_top">' + this._conditionalGet(testCaseResult, 'ObjectID') + '</a>',
+                Build: testCaseResult.get('Build'),
+                DateandTime: testCaseResult.get('Date'),
+                Verdict: this._drawBox(testCaseResult.get('Verdict')),
+                Tester: this._testerIfKnown(testCaseResult.get('Tester'))
+            };
+        }, this);
+
+        return records;
+    },
+    
+    _organizeResultsByTestCase: function (testCaseResults) {
+        debugger;
+        var testCaseHolder = {};
+        var testCaseResult, testCase;
+        for (var i = 0; i < testCaseResults.length; i++) {
+            testCaseResult = testCaseResults[i];
+            testCase = testCaseResult.get('TestCase');
+
+            //there should always be a test case, but we have this if-statement in case
+            var id = 'No Test Case';
+            if (testCase) {
+                id = testCase.FormattedID;
+            }
+
+            if (!testCaseHolder.hasOwnProperty(id)) {
+                testCaseHolder[id] = {'TestCase': testCase, 'results': []};
+            }
+
+            testCaseHolder[id].results.push(testCaseResult);
+        }
+        return testCaseHolder;
+    },
+    
+    _ascendingOrderedTestCases: function (testCaseHolder) {
+        var testCases = [], formattedID;
+        for (formattedID in testCaseHolder) {
+            if (testCaseHolder.hasOwnProperty(formattedID)) {
+                testCases.push(formattedID);
+            }
+        }
+        
+        testCases.sort();
+        return testCases;
+    },
+    
+    _conditionalGet: function (object, string) {
+        if (!object.get(string)) {
+            return '';
+        } else {
+            return object.get(string);
+        }
+    },
+
+    _testerIfKnown: function (tester) {
+        if (typeof tester === 'object' && tester.DisplayName) {
+            return tester.DisplayName;
+        } else if (typeof tester === 'object' && tester.UserName) {
+            return tester.UserName;
         } else {
             return '';
         }
@@ -68,144 +174,41 @@ Ext.define('CustomApp', {
         }
         return boxTemplate.apply({verdictClass: verdictClass, verdict: verdict});
     },
-    
-    _organizeResultsByTestCase: function (testCaseResults) {
-        var testCaseHolder = {};
-        var tcResult, testCase, id;
-        for (var i = 0; i < testCaseResults.length; i++) {
-            tcResult = testCaseResults[i];
-            testCase = tcResult.get('TestCase');
-            if (testCase !== undefined) {
-                id = testCase.FormattedID;
-                if (id === undefined) {
-                    id = 'No Test Case';
-                }
-                if (!testCaseHolder.hasOwnProperty(id))
-                {
-                    testCaseHolder[id] = {'TestCase': testCase, 'results': []};
-                }
-                testCaseHolder[id].results.push(tcResult);
-            }
-            
-        }
-        return testCaseHolder;
-    },
-    
-    _ascendingOrderedTestCases: function (testCaseHolder) {
-        var testCases = [], formattedID;
-        for (formattedID in testCaseHolder) {
-            if (testCaseHolder.hasOwnProperty(formattedID)) {
-                testCases.push(formattedID);
-            }
-        }
-        
-        testCases.sort();
-        return testCases;
-    },
 
-    _onTestCasesDataLoaded: function (store, data) {
-        if (data.length < 1) {
-            this.down('#mainHeader').update('');
-            this.down('#testCaseGrids').add(
-                Ext.create('Ext.container.Container', {
-                    html: "No Test Case information found for the current workspace, project and time scale",
-                    cls: 'error404'
-                })
-            );
-        } else {
-            var testCaseHolder = this._organizeResultsByTestCase(data);
-            var testCases = this._ascendingOrderedTestCases(testCaseHolder);
-            
-            var records, customStore, tcFormattedID, testCase, testCaseResults;
+    _buildGrid: function(records) {
+        var customStore = Ext.create('Rally.data.custom.Store', {
+            data: records,
+            pageSize: records.length
+        });
 
-            var tcLinkTemplate = new Ext.Template('<a href="{targeturl}" target="_top">{id}: {name}</a> {wplink}');
-            var wpLinkTemplate = new Ext.Template(' (<a href="{wptarget}" target="_top">{wptext}</a>)');
-
-            for (var i = 0; i < testCases.length; i++) {
-                records = [];
-                var wpLink = ''; 
-                var tcTitle = '';
-                tcFormattedID = testCases[i];
-                testCase = testCaseHolder[tcFormattedID].TestCase;
-                var targetUrl = Rally.nav.Manager.getDetailUrl(testCase);
-                var ID = testCases[i];
-                var name = testCase.Name;
-
-                if (testCase.WorkProduct !== undefined && testCase.WorkProduct !== null) {
-                    var wpTarget = Rally.nav.Manager.getDetailUrl(testCase.WorkProduct);
-                    var wpText = testCase.WorkProduct.FormattedID + ': ' + testCase.WorkProduct.Name;
-                    wpLink = wpLinkTemplate.apply({wptarget: wpTarget, wptext: wpText});
-                }
-
-                var testCaseTitle = tcLinkTemplate.apply({targeturl: targetUrl, id: ID, name: name, wplink: wpLink});
-                this.down('#testCaseGrids').add(
-                    Ext.create('Ext.container.Container', {
-                        html: testCaseTitle,
-                        cls: 'gridTitle'
-                    })
-                );
-                
-                testCaseResults = testCaseHolder[tcFormattedID].results;
-
-                var that = this;
-                for (var j = 0; j < testCaseResults.length; j++) {
-                    records.push({
-                        ID: '<a href="' + Rally.nav.Manager.getDetailUrl(that._conditionalGet(testCaseResults[j], '_ref')) +
-                            '" target="_top">' + that._conditionalGet(testCaseResults[j], 'ObjectID') + '</a>',
-                        Build: testCaseResults[j].get('Build'),
-                        DateandTime: testCaseResults[j].get('Date'),
-                        Verdict: that._drawBox(testCaseResults[j].get('Verdict')),
-                        Tester: that._testerIfKnown(testCaseResults[j].get('Tester'))
-                    });
-                }
-
-                customStore = Ext.create('Rally.data.custom.Store', {
-                    data: records,
-                    pageSize: records.length
-                });
-
-                this._buildGrid(customStore);
-            }
-        }
-    },
-
-    _buildGrid: function(store) {
         this.down('#testCaseGrids').add(
             Ext.create('Ext.container.Container', {
                 layout: 'fit',
-                cls: 'gridContainer',
+                componentCls: 'gridContainer',
                 items: {
                     xtype: 'rallygrid',
-                    store: store,
-                    cls: 'testCaseGrid',
+                    store: customStore,
+                    componentCls: 'testCaseGrid',
                     showPagingToolbar: false,
-                    columnCfgs: [{
-                        text: 'ID',
-                        dataIndex: 'ID',
-                        cls: 'columnHeader',
-                        flex: 2
-                    }, {
-                        text: 'Verdict',
-                        dataIndex: 'Verdict',
-                        cls: 'columnHeader',
-                        width: 100
-                    }, {
-                        text: 'Build',
-                        dataIndex: 'Build',
-                        cls: 'columnHeader',
-                        flex: 2
-                    }, {
-                        text: 'Date and Time',
-                        dataIndex: 'DateandTime',
-                        cls: 'columnHeader',
-                        flex: 3
-                    }, {
-                        text: 'Tester',
-                        dataIndex: 'Tester',
-                        cls: 'columnHeader',
-                        flex: 2
-                    }]
+                    columnCfgs: [
+                        {text: 'ID', dataIndex: 'ID', componentCls: 'columnHeader', flex: 2},
+                        {text: 'Verdict', dataIndex: 'Verdict', componentCls: 'columnHeader', width: 100},
+                        {text: 'Build', dataIndex: 'Build', componentCls: 'columnHeader', flex: 2},
+                        {text: 'Date and Time', dataIndex: 'DateandTime', componentCls: 'columnHeader', flex: 3},
+                        {text: 'Tester', dataIndex: 'Tester', componentCls: 'columnHeader', flex: 2}
+                    ]
                 }
+            })
+        );
+    },
+
+    _displayEmptyDataText: function() {
+        this.down('#mainHeader').update('');
+        this.down('#testCaseGrids').add(
+            Ext.create('Ext.container.Container', {
+                html: "No Test Case information found for the current workspace, project and time scale of last " + 
+                    this.daysToRecord + " days",
+                componentCls: 'error404'
             })
         );
     },
@@ -220,14 +223,27 @@ Ext.define('CustomApp', {
         ];
     },
 
+    getSettingsFields: function() {
+        return [
+            {
+                name: 'dateSetting',
+                xtype: 'rallynumberfield',
+                fieldLabel: '# Days of past Test Case results: ',
+                minValue: 1,
+                maxValue: 365,
+                width: 260,
+                labelWidth: 180,
+                componentCls: 'number-field'
+            }
+        ];
+    },
+
     _onButtonPressed: function() {
         var title = 'Test Case Pass-Fail History', options;
 
         // code to get the style that we added in the app.css file
         var css = document.getElementsByTagName('style')[0].innerHTML;
 
-
-        
         options = "toolbar=1,menubar=1,scrollbars=yes,scrolling=yes,resizable=yes,width=1000,height=500";
 
         var printWindow;
@@ -254,7 +270,13 @@ Ext.define('CustomApp', {
 
         this._injectCSS(printWindow);
 
-        printWindow.print();
+        if (Ext.isSafari) {
+            var timeout = setTimeout(function() {
+                printWindow.print();
+            }, 500);
+        } else {
+            printWindow.print();
+        }
 
     },
 
